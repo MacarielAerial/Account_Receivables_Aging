@@ -1,0 +1,40 @@
+# LuxCorp Data description. AM16
+
+## 1. Orders.csv 
+
+One record per customer orders involving trade credit.
+
+- CustID. Integer unique identifier for customers
+- OrderID. Integer unique identifier for orders
+- Date. Order date
+- Amount. Gross account receivable for the order
+
+## 2. Payments.csv
+
+One record per trade-credit order payment.
+
+- CustID. Integer unique identifier for customers
+- OrderID. Integer unique identifier for orders
+- Date. Payment received date.
+- Amount. Amount collected in repayment of the order's trade receivable.
+
+## 3. Customers.csv
+
+One record per customer, providing customer-specific information.
+
+- CustID. Integer unique identifier for customers.
+- CustRegion. Geographic location of customer operations.
+- CustType. Retail or wholesale customer type.
+- CustStartDate. Date at which the customer was first authorized for trade credit.
+- CustAge. Number of years the customer was in business at CustStartDate.
+
+## 4. Econ.csv
+
+Monthly value of economic leading indicator index by geographic region.
+
+Value from 1 (poor economic performance) to 5 (strong economic performance).
+
+- Date. Month of economic indicator value.
+- econ_Amer. Indicator value, Americas. 
+- econ_APAC. Indicator value, Asia-Pacific.
+- econ_Euro. Indicator value, Europe.

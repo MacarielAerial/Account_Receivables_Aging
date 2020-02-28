@@ -1,0 +1,67 @@
+---
+title: "Sample to Get You Started"
+author: "Professor Stupendous"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)  # load this to have access to knitr table printing functions (kable), etc.
+library(ggplot2) # good graphics
+library(data.table) # better than regular data frames
+```
+
+## Sample Report Memo
+
+If you don't know already, you should probably learm knitr.  It will make writing analytics reports a lot easier!
+
+## Make it look like a proper memo.
+
+I don't want to see all your code, so set echo=FALSE when running code.
+
+```{r, echo=FALSE}
+# load data files
+dt.orders <- fread(file="orders.csv")
+dt.payments <- fread(file="payments.csv")
+dt.customers <- fread(file="customers.csv")
+dt.econ <- fread(file="econ.csv")
+```
+
+## Show some results.
+
+```{r, echo=FALSE}
+# Join order on payments for example to have on table of transactions, row per customer-month
+# data.table does fast joins, and you can select and transform columns at the same time
+# doing here: output_table <- join_table[,select_transform_cols][base_table[,select_transform_cols], on=join_cols] 
+# the normal way joins are done in data table is: output_table <- joint_table[base_table, on=join_cols]
+dt.order.pmts <- dt.payments[,.(PaymentDate = as.Date(Date),OrderID,PaymentAmt = amount)][
+  dt.orders[,.(OrderDate = as.Date(Date),OrderID,CustID,OrderAmt = amount)], on = c("OrderID")]
+```
+
+The basic merged order and payment data looks like this:
+
+```{r, echo=FALSE, results='asis'}
+kable(dt.order.pmts[c(1:3,(nrow(dt.order.pmts)-3):nrow(dt.order.pmts))],
+      aligh=c("r","r","r","r","r","r","r"),
+      format.args = list(big.mark = ","))
+```
+
+This data can be plotted over time:
+
+```{r, fig.show='asis', echo=FALSE}
+chartdata <- rbindlist(list(dt.payments[,.(Date = as.Date(Date),OrderID,amount,transType = "payment")],
+                            dt.orders[,.(Date = as.Date(Date),OrderID,amount,transType = "order")]))
+ggplot(chartdata,aes(x=Date,y=amount,color=transType)) +
+  geom_point(alpha=0.8)
+```
+
+## Output files
+
+The default output for this file is HTML, but you can figure out for yourself how to knit to PDF and Word documents, which should work pretty easily if you have LaTeX and Word installed.
+
+## Conclusion
+
+Being able to put tables and charts in your document instantly when making changes to your document or code is a big time saver.
