@@ -19,6 +19,11 @@ class Aging:
 		self.df_master = pd.DataFrame()
 		self.df_master_agg = pd.DataFrame()
 		self.total_outstanding = 0
+		self.prob_30 = np.nan
+		self.prob_60 = np.nan
+		self.prob_90 = np.nan
+		self.prob_120 = np.nan
+		self.prob_more_than_120 = np.nan
 
 	def data_import(self):
 		self.df_customer = pd.read_csv(file_customer)
@@ -37,9 +42,34 @@ class Aging:
 		self.df_master['payment_amount'] = self.df_master['payment_amount'].fillna(0)
 		self.df_master['Payment_Date'] = self.df_master['Payment_Date'].fillna('2099-01-01')
 		self.df_master['Payment_Date'] = pd.to_datetime(self.df_master['Payment_Date'])
+		self.df_master['Order_Date'] = pd.to_datetime(self.df_master['Order_Date'])
 		self.df_master['outstanding_amount'] = self.df_master['order_amount'] - self.df_master['payment_amount']
-		self.df_master_agg = self.df_master.groupby(['OrderID', 'Payment_Date']).agg({'outstanding_amount': 'sum'})
+		self.df_master_agg = self.df_master.groupby(['OrderID', 'Payment_Date', 'Order_Date']).agg({'outstanding_amount': 'sum', 'order_amount': 'sum'})
 		self.df_master_agg = self.df_master_agg.reset_index()
+		self.df_master_agg['Delay_Days'] = self.df_master_agg['Payment_Date'] - self.df_master_agg['Order_Date']
+		self.df_master_agg['Delay_Days'] = self.df_master_agg['Delay_Days']/np.timedelta64(1, 'D')
+		self.df_master_agg['Days_30'] = 0
+		self.df_master_agg['Days_60'] = 0
+		self.df_master_agg['Days_90'] = 0
+		self.df_master_agg['Days_120'] = 0
+		self.df_master_agg['Days_More_Than_120'] = 0
+		self.df_master_agg.loc[self.df_master_agg['Delay_Days'] <= 30, 'Days_30'] = 1
+		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 30) & (self.df_master_agg['Delay_Days'] <= 60), 'Days_60'] = 1
+		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 60) & (self.df_master_agg['Delay_Days'] <= 90), 'Days_90'] = 1
+		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 90) & (self.df_master_agg['Delay_Days'] <= 120), 'Days_120'] = 1
+		self.df_master_agg.loc[self.df_master_agg['Delay_Days'] > 120, 'Days_More_Than_120'] = 1
+
+	def analyse(self):
+		self.prob_30 = self.df_master_agg.loc[self.df_master_agg['Days_30'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_30'] == 1, 'order_amount'].sum()
+		self.prob_60 = self.df_master_agg.loc[self.df_master_agg['Days_60'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_60'] == 1, 'order_amount'].sum()
+		self.prob_90 = self.df_master_agg.loc[self.df_master_agg['Days_90'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_90'] == 1, 'order_amount'].sum()
+		self.prob_120 = self.df_master_agg.loc[self.df_master_agg['Days_120'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_120'] == 1, 'order_amount'].sum()
+		self.prob_more_than_120 = self.df_master_agg.loc[self.df_master_agg['Days_More_Than_120'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_More_Than_120'] == 1, 'order_amount'].sum()
+		print('Percentage of Account Receivable Unpaid Before 30 Days: ' + '{:.2%}'.format(self.prob_30))
+		print('Percentage of Account Receivable Unpaid Before 60 Days: ' + '{:.2%}'.format(self.prob_60))
+		print('Percentage of Account Receivable Unpaid Before 90 Days: ' + '{:.2%}'.format(self.prob_90))
+		print('Percentage of Account Receivable Unpaid Before 120 Days: ' + '{:.2%}'.format(self.prob_120))
+		print('Percentage of Account Receivable Unpaid After 120 Days: ' + '{:.2%}'.format(self.prob_more_than_120))
 
 	def diagnostics(self):
 		self.total_outstanding = self.df_master['outstanding_amount'].sum()
@@ -67,12 +97,19 @@ class Aging:
 
 		plt.figure(figsize = (16, 9))
 		temp_df_master_agg = self.df_master_agg.loc[self.df_master_agg['Payment_Date'] != pd.to_datetime('2099-01-01'), :]
-		temp_df_master_agg = temp_df_master_agg.set_index('Payment_Date')
-		temp_df_master_agg.plot()
+		temp_df_master_agg.set_index('Payment_Date')['outstanding_amount'].plot()
 		plt.title('Outstanding Amount vs. Payment Date')
 		plt.ylabel('Outstanding Amount')
 		plt.xlabel('Payment Date')
 		plt.savefig('outstanding_time_series.png', dpi = 300)
+		plt.close()
+
+		plt.figure(figsize = (16, 9))
+		temp_df_master_agg.set_index('Payment_Date')['Delay_Days'].hist(bins = 120)
+		plt.title('Histogram of Delayed Days')
+		plt.ylabel('Frequency')
+		plt.xlabel('Delayed_Days')
+		plt.savefig('delayed_days_hist.png', dpi = 300)
 		plt.close()
 
 	def data_export(self):
@@ -83,6 +120,7 @@ class Aging:
 		self.data_clean()
 		self.database_op()
 		self.data_clean_2()
+		self.analyse()
 		self.diagnostics()
 		self.visualisation()
 		self.data_export()
