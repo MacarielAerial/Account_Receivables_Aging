@@ -3,29 +3,32 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# Configure the programme
+pd.set_option('display.float_format', '{:.2f}'.format)
+
 # Define global parameters
 file_customer = 'customers.csv'
 file_order = 'orders.csv'
 file_payment = 'payments.csv'
 output_text_file = 'text_output.txt'
+list_category = ['Days_30', 'Days_60', 'Days_90', 'Days_120', 'Days_More_Than_120']
+list_prob = ['prob_30', 'prob_60', 'prob_90', 'prob_120', 'prob_more_than_120']
 
 class Aging:
-	def __init__(self, file_customer, file_order, file_payment, output_text_file):
+	def __init__(self, file_customer, file_order, file_payment, output_text_file, list_prob, list_category):
 		self.file_customer = file_customer
 		self.file_order = file_order
 		self.file_payment = file_payment
 		self.output_text_file = output_text_file
+		self.list_prob = list_prob
+		self.list_category = list_category
 		self.df_customer = pd.DataFrame()
 		self.df_order = pd.DataFrame()
 		self.df_payment = pd.DataFrame()
 		self.df_master = pd.DataFrame()
 		self.df_master_agg = pd.DataFrame()
+		self.df_prob = pd.DataFrame()
 		self.total_outstanding = 0
-		self.prob_30 = np.nan
-		self.prob_60 = np.nan
-		self.prob_90 = np.nan
-		self.prob_120 = np.nan
-		self.prob_more_than_120 = np.nan
 
 	def data_import(self):
 		self.df_customer = pd.read_csv(file_customer)
@@ -48,35 +51,26 @@ class Aging:
 		self.df_master['outstanding_amount'] = self.df_master['order_amount'] - self.df_master['payment_amount']
 		self.df_master_agg = self.df_master.groupby(['OrderID', 'Payment_Date', 'Order_Date']).agg({'outstanding_amount': 'sum', 'order_amount': 'sum'})
 		self.df_master_agg = self.df_master_agg.reset_index()
-		self.df_master_agg['Delay_Days'] = self.df_master_agg['Payment_Date'] - self.df_master_agg['Order_Date']
-		self.df_master_agg['Delay_Days'] = self.df_master_agg['Delay_Days']/np.timedelta64(1, 'D')
-		self.df_master_agg['Days_30'] = 0
-		self.df_master_agg['Days_60'] = 0
-		self.df_master_agg['Days_90'] = 0
-		self.df_master_agg['Days_120'] = 0
-		self.df_master_agg['Days_More_Than_120'] = 0
-		self.df_master_agg.loc[self.df_master_agg['Delay_Days'] <= 30, 'Days_30'] = 1
-		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 30) & (self.df_master_agg['Delay_Days'] <= 60), 'Days_60'] = 1
-		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 60) & (self.df_master_agg['Delay_Days'] <= 90), 'Days_90'] = 1
-		self.df_master_agg.loc[(self.df_master_agg['Delay_Days'] > 90) & (self.df_master_agg['Delay_Days'] <= 120), 'Days_120'] = 1
-		self.df_master_agg.loc[self.df_master_agg['Delay_Days'] > 120, 'Days_More_Than_120'] = 1
-
-	def analyse(self):
-		self.prob_30 = self.df_master_agg.loc[self.df_master_agg['Days_30'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_30'] == 1, 'order_amount'].sum()
-		self.prob_60 = self.df_master_agg.loc[self.df_master_agg['Days_60'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_60'] == 1, 'order_amount'].sum()
-		self.prob_90 = self.df_master_agg.loc[self.df_master_agg['Days_90'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_90'] == 1, 'order_amount'].sum()
-		self.prob_120 = self.df_master_agg.loc[self.df_master_agg['Days_120'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_120'] == 1, 'order_amount'].sum()
-		self.prob_more_than_120 = self.df_master_agg.loc[self.df_master_agg['Days_More_Than_120'] == 1, 'outstanding_amount'].sum()/self.df_master_agg.loc[self.df_master_agg['Days_More_Than_120'] == 1, 'order_amount'].sum()
-		with open(self.output_text_file, 'w') as f:
-			print('Percentage of Account Receivable Unpaid Before 30 Days: ' + '{:.2%}'.format(self.prob_30), file = f)
-			print('Percentage of Account Receivable Unpaid Before 60 Days: ' + '{:.2%}'.format(self.prob_60), file = f)
-			print('Percentage of Account Receivable Unpaid Before 90 Days: ' + '{:.2%}'.format(self.prob_90), file = f)
-			print('Percentage of Account Receivable Unpaid Before 120 Days: ' + '{:.2%}'.format(self.prob_120), file = f)
-			print('Percentage of Account Receivable Unpaid After 120 Days: ' + '{:.2%}'.format(self.prob_more_than_120), file = f)
-
-	def diagnostics(self):
+		self.df_master_agg = Aux.aging_var_create(self.df_master_agg, self.list_category)
 		self.total_outstanding = self.df_master['outstanding_amount'].sum()
 		self.total_order_amount = self.df_master['order_amount'].sum()
+
+	def analyse(self):
+		list_agg = self.list_prob + ['outstanding_amount']
+		self.df_master_agg = Aux.prob_var_create(self.df_master_agg, self.list_prob, self.list_category)
+		self.df_prob = self.df_master_agg.groupby(self.df_master_agg['Order_Date'].dt.year)[list_agg].mean()
+		self.df_prob['prop_total_outstanding'] = self.df_prob['outstanding_amount']/self.total_outstanding
+		with open(self.output_text_file, 'w') as f:
+			for i in range(len(self.list_prob)):
+				prob_int = [int(s) for s in Aux.char_split(self.list_prob[i]) if s.isdigit()]
+				prob_int = ''.join(str(char) for char in prob_int)
+				if i != len(self.list_prob) - 1:
+					print('Average Percentage of Account Receivable Unpaid Before ' + str(prob_int) + ' Days: ' + '{:.2%}'.format(self.df_prob[self.list_prob[i]].mean()), file = f)
+				else:
+					print('Average Percentage of Account Receivable Unpaid After ' + str(prob_int) + ' Days: ' + '{:.2%}'.format(self.df_prob[self.list_prob[i]].mean()), file = f)
+			print(self.df_prob, file = f)
+
+	def diagnostics(self):
 		with open('text_output.txt', 'a') as f:
 			print('Dimensionality for customer data', file = f)
 			print(self.df_customer.shape, file = f)
@@ -128,11 +122,27 @@ class Aging:
 		self.visualisation()
 		self.data_export()
 
+class Aux:
+	def aging_var_create(df, list_category):
+		df['Delay_Days'] = (df['Payment_Date'] - df['Order_Date'])/np.timedelta64(1, 'D')
+		df['Days_30'], df['Days_60'], df['Days_90'], df['Days_120'], df['Days_More_Than_120'] = 0, 0, 0, 0, 0
+		df.loc[df['Delay_Days'] <= 30, list_category[0]] = 1
+		df.loc[(df['Delay_Days'] > 30) & (df['Delay_Days'] <= 60), list_category[1]] = 1
+		df.loc[(df['Delay_Days'] > 60) & (df['Delay_Days'] <= 90), list_category[2]] = 1
+		df.loc[(df['Delay_Days'] > 90) & (df['Delay_Days'] <= 120), list_category[3]] = 1
+		df.loc[df['Delay_Days'] > 120, list_category[4]] = 1
+		return df
 
+	def prob_var_create(df, list_prob, list_category):
+		for i in range(len(list_prob)):
+			df[list_prob[i]] = (df['outstanding_amount'] * df[list_category[i]])/(df['order_amount'] * df[list_category[i]])
+		return df
 
+	def char_split(word):
+		return [char for char in word]
 
 def main():
-	Obj = Aging(file_customer, file_order, file_payment, output_text_file)
+	Obj = Aging(file_customer, file_order, file_payment, output_text_file, list_prob, list_category)
 	Obj.exec()
 
 
