@@ -1,0 +1,15 @@
+Percentage of Account Receivable Unpaid Before 30 Days: 0.72%
+Percentage of Account Receivable Unpaid Before 60 Days: 0.81%
+Percentage of Account Receivable Unpaid Before 90 Days: 1.21%
+Percentage of Account Receivable Unpaid Before 120 Days: 16.12%
+Percentage of Account Receivable Unpaid After 120 Days: 80.49%
+Dimensionality for customer data
+(500, 5)
+Dimensionality for order data
+(21007, 4)
+Dimensionality for payment data
+(20323, 4)
+Dimensionality for aggregated data
+(21007, 11)
+Total amount outstanding: $1.16E+09
+Total amount outstanding as a percentage of total order amount: 7.07%
