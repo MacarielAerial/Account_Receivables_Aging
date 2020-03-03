@@ -49,7 +49,7 @@ class Aging:
 		self.df_master['Payment_Date'] = pd.to_datetime(self.df_master['Payment_Date'])
 		self.df_master['Order_Date'] = pd.to_datetime(self.df_master['Order_Date'])
 		self.df_master['outstanding_amount'] = self.df_master['order_amount'] - self.df_master['payment_amount']
-		self.df_master_agg = self.df_master.groupby(['OrderID', 'Payment_Date', 'Order_Date']).agg({'outstanding_amount': 'sum', 'order_amount': 'sum'})
+		self.df_master_agg = self.df_master.groupby(['OrderID', 'Payment_Date', 'Order_Date']).agg({'outstanding_amount': 'sum', 'order_amount': 'sum', 'payment_amount': 'sum'})
 		self.df_master_agg = self.df_master_agg.reset_index()
 		self.df_master_agg.to_csv('raw_data_joined.csv', index = False)
 		self.df_master_agg = Aux.aging_var_create(self.df_master_agg, self.list_category)

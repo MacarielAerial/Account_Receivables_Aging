@@ -21,21 +21,19 @@ def main():
 	print(df.shape)
 	df['Account_Receivable'] = np.nan
 	for year in list_year:
-		df.loc[(df['Order_Date'] <= df['Financial_Year_End']) & (df['Payment_Date'] <= df['Financial_Year_End']), 'Account_Receivable'] = df['outstanding_amount']
+		df.loc[(df['Order_Date'] <= df['Financial_Year_End']), 'Account_Receivable'] = df['outstanding_amount']
 	df_agg = df.groupby('Financial_Year_End').agg({'Account_Receivable': 'sum', 'order_amount': 'sum'})
-	df['prop_loss'] = df['Account_Receivable']/df['order_amount']
+	df['prop_loss'] = 0
+	df.to_csv('temp.csv')
+	df.loc[(df['Financial_Year_End'] >= df['Order_Date']) & (df['Financial_Year_End'] >= df['Payment_Date']), 'prop_loss'] = df['Account_Receivable']/df['order_amount']
+	df.loc[(df['Financial_Year_End'] >= df['Order_Date']) & (df['Financial_Year_End'] < df['Payment_Date']), 'prop_loss'] = df['payment_amount']/df['payment_amount']
 	df['loss_30'], df['loss_60'], df['loss_120'], df['loss_180'], df['loss_more'] = np.nan, np.nan, np.nan, np.nan, np.nan
-	df.loc[df['Days_to_End'] <= 30, 'loss_30'] = df['Account_Receivable']
-	df.loc[(df['Days_to_End'] > 30) & (df['Days_to_End'] <= 60), 'loss_60'] = df['Account_Receivable']
-	df.loc[(df['Days_to_End'] > 60) & (df['Days_to_End'] <= 120), 'loss_120'] = df['Account_Receivable']
-	df.loc[(df['Days_to_End'] > 120) & (df['Days_to_End'] <= 180), 'loss_180'] = df['Account_Receivable']
-	df.loc[df['Days_to_End'] > 180, 'loss_more'] = df['Account_Receivable']
-	df_result = df.groupby('Financial_Year_End').agg({'order_amount': 'sum', 'Account_Receivable': 'sum', 'loss_30': 'sum', 'loss_60': 'sum', 'loss_120': 'sum', 'loss_180': 'sum', 'loss_more': 'sum'})
-	df_result['prop_30'] = df_result['loss_30']/df_result['order_amount']
-	df_result['prop_60'] = df_result['loss_60']/df_result['order_amount']
-	df_result['prop_120'] = df_result['loss_120']/df_result['order_amount']
-	df_result['prop_180'] = df_result['loss_180']/df_result['order_amount']
-	df_result['prop_more'] = df_result['loss_more']/df_result['order_amount']
+	df.loc[df['Days_to_End'] <= 30, 'loss_30'] = df['prop_loss']
+	df.loc[(df['Days_to_End'] > 30) & (df['Days_to_End'] <= 60), 'loss_60'] = df['prop_loss']
+	df.loc[(df['Days_to_End'] > 60) & (df['Days_to_End'] <= 120), 'loss_120'] = df['prop_loss'] 
+	df.loc[(df['Days_to_End'] > 120) & (df['Days_to_End'] <= 180), 'loss_180'] = df['prop_loss'] 
+	df.loc[df['Days_to_End'] > 180, 'loss_more'] = df['prop_loss'] 
+	df_result = df.groupby('Financial_Year_End').agg({'order_amount': 'sum', 'Account_Receivable': 'sum', 'loss_30': 'mean', 'loss_60': 'mean', 'loss_120': 'mean', 'loss_180': 'mean', 'loss_more': 'mean', 'prop_loss': 'mean'})
 	df_result.to_csv('result.csv')
 	print(df_result)
 
