@@ -1,0 +1,31 @@
+import pandas as pd
+df = pd.read_csv('raw_data_joined.csv', index_col = None)
+
+def get_year(df):
+	df['Order_Date'] = pd.to_datetime(df['Order_Date'])
+	list_year = pd.unique(df['Order_Date'].dt.year).tolist()
+	return list_year
+
+
+def main():
+	list_year = get_year(df)
+	df['Financial_Year_End'] = 0
+	for year in list_year:
+		df.loc[df['Order_Date'].dt.year == year, 'Financial_Year_End'] = pd.to_datetime('31/03/' + str(year + 1))
+	df['Financial_Year_End'] = df['Financial_Year_End'].dt.month
+	#df['Days_to_End'] = df['Financial_Year_End'] - df['Order_Date']
+	print(type(df['Financial_Year_End']))
+	print(df)
+
+
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+	main()
